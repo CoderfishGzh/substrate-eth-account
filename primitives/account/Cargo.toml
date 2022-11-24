@@ -11,20 +11,19 @@ targets = [ "x86_64-unknown-linux-gnu" ]
 [dependencies]
 blake2-rfc = { version = "0.2.18", optional = true, default-features = false }
 hex = { version = "0.4", default-features = false }
-impl-serde = { version = "0.3.1", default-features = false }
-libsecp256k1 = { version = "0.6", default-features = false, features = [ "hmac" ] }
+impl-serde = { version = "0.4.0", default-features = false }
+libsecp256k1 = { version = "0.7.1", default-features = false, features = [ "hmac" ] }
 log = "0.4"
 serde = { version = "1.0.101", optional = true, default-features = false, features = [ "derive" ] }
-sha3 = { version = "0.9", default-features = false }
+sha3 = { version = "0.10.6", default-features = false }
 
 # Substrate
-parity-scale-codec = { version = "3.0.0", default-features = false, features = [ "derive" ] }
-scale-info = { version = "2.0", default-features = false, features = [ "derive" ] }
-sp-core = { git = "https://github.com/purestake/substrate", branch = "moonbeam-polkadot-v0.9.29", default-features = false }
-sp-io = { git = "https://github.com/purestake/substrate", branch = "moonbeam-polkadot-v0.9.29", default-features = false }
-sp-runtime = { git = "https://github.com/purestake/substrate", branch = "moonbeam-polkadot-v0.9.29", default-features = false }
-sp-runtime-interface = { git = "https://github.com/purestake/substrate", branch = "moonbeam-polkadot-v0.9.29", default-features = false }
-sp-std = { git = "https://github.com/purestake/substrate", branch = "moonbeam-polkadot-v0.9.29", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+frame-support = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+frame-system = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
 
 [dev-dependencies]
 hex = "0.4.3"
@@ -36,16 +35,13 @@ std = [
 	"hex/std",
 	"impl-serde/std",
 	"libsecp256k1/std",
-	"parity-scale-codec/std",
 	"serde/std",
 	"sha3/std",
-	"sp-core/std",
-	"sp-io/std",
-	"sp-runtime/std",
-	"sp-std/std",
+	"codec/std",
+	"frame-support/std",
+	"frame-system/std",
 ]
 
 full_crypto = [
 	"blake2-rfc",
-	"sp-runtime-interface/disable_target_static_assertions",
 ]
