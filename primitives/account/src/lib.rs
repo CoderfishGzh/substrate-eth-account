@@ -1,6 +1,13 @@
 //！ 以太坊签名实施
 //！ 包括AccountId20的验证和识别特征
 
+//! 以太坊地址生成
+//! 在以太坊中，使用ECC来创建公钥和私钥。私钥保持安全，然后使用公钥导出以太坊地址,
+//!	当签署交易时，我们使用我们的私钥来创建签名，并根据以太坊地址自动检查签名。
+//!	在创建密钥（为我们的钱包）时，我们生成一个256位的私钥，然后公钥是secp256k1 ECDSA
+//!	曲线上的一个点（x,y点）。然后使用Keccak-256（又名SHA-3）对该密钥进行哈希处理，
+//!	低160位成为公共的以太坊地址
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::{
@@ -162,5 +169,38 @@ impl From<libsecp256k1::PublicKey> for EthereumSigner {
 impl std::fmt::Display for EthereumSigner {
 	fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(fmt, "ethereum signature: {:?}", H160::from_slice(&self.0))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use libsecp256k1::verify;
+	use sp_runtime::{
+		app_crypto::sp_core::{ecdsa, Pair},
+		traits::IdentifyAccount,
+	};
+
+	/// Private key:  cb4214471c2f9a88fe073fcca716f423bae8acc909fef2fc84f7b4a5676e159e
+	/// Public key:
+	/// e6f860d43661e378e1ebff12af3c49d1f98feae988eb09520485707c90e2e2b63f4c8adcde10841eb3cac36af32409de559bede72ae9aaef2111f3501e0c3114
+	/// Address: 0x273a8d6237397af2e7f53210ecb0c87649056380
+	#[test]
+	fn test_account_derivation_1() {
+		let private_key = "cb4214471c2f9a88fe073fcca716f423bae8acc909fef2fc84f7b4a5676e159e";
+		let public_key = "e6f860d43661e378e1ebff12af3c49d1f98feae988eb09520485707c90e2e2b63f4c8adcde10841eb3cac36af32409de559bede72ae9aaef2111f3501e0c3114";
+		let address = "273a8d6237397af2e7f53210ecb0c87649056380";
+
+		let secret_key = hex::decode(private_key).unwrap();
+
+		let mut expected_hex_account = [0u8; 20];
+		hex::decode_to_slice(address, &mut expected_hex_account)
+			.expect("example data is 20 bytes of vaild hex");
+
+		let pk = ecdsa::Pair::from_seed_slice(&secret_key).unwrap().public();
+		let account: EthereumSigner = pk.into();
+		let expected_account = AccountId20::from(expected_hex_account);
+
+		assert_eq!(account.into_account(), expected_account);
 	}
 }
