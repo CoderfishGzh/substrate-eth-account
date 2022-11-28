@@ -2182,6 +2182,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hamster-core-primitives"
+version = "0.1.0"
+dependencies = [
+ "account",
+ "sp-core",
+ "sp-runtime",
+]
+
+[[package]]
 name = "handlebars"
 version = "4.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3731,6 +3740,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
+ "hamster-core-primitives",
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",

@@ -100,6 +100,7 @@ impl sp_runtime::traits::Verify for EthereumSignature {
 	fn verify<L: Lazy<[u8]>>(&self, mut msg: L, signer: &AccountId20) -> bool {
 		let mut m = [0u8; 32];
 		m.copy_from_slice(Keccak256::digest(msg.get()).as_slice());
+		// 验证和恢复签名
 		match sp_io::crypto::secp256k1_ecdsa_recover(self.0.as_ref(), &m) {
 			Ok(pubkey) =>
 				AccountId20(H160::from(H256::from_slice(Keccak256::digest(&pubkey).as_slice())).0) ==
@@ -175,20 +176,25 @@ impl std::fmt::Display for EthereumSigner {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use libsecp256k1::verify;
+	use libsecp256k1::{verify, Message, SecretKey};
 	use sp_runtime::{
 		app_crypto::sp_core::{ecdsa, Pair},
 		traits::IdentifyAccount,
 	};
 
-	/// Private key:  cb4214471c2f9a88fe073fcca716f423bae8acc909fef2fc84f7b4a5676e159e
+	/// Private key:
+	/// cb4214471c2f9a88fe073fcca716f423bae8acc909fef2fc84f7b4a5676e159e
 	/// Public key:
 	/// e6f860d43661e378e1ebff12af3c49d1f98feae988eb09520485707c90e2e2b63f4c8adcde10841eb3cac36af32409de559bede72ae9aaef2111f3501e0c3114
-	/// Address: 0x273a8d6237397af2e7f53210ecb0c87649056380
+	/// Address:
+	/// 0x273a8d6237397af2e7f53210ecb0c87649056380
 	#[test]
 	fn test_account_derivation_1() {
+		// 以太坊公钥
 		let private_key = "cb4214471c2f9a88fe073fcca716f423bae8acc909fef2fc84f7b4a5676e159e";
+		// 以太坊私钥
 		let public_key = "e6f860d43661e378e1ebff12af3c49d1f98feae988eb09520485707c90e2e2b63f4c8adcde10841eb3cac36af32409de559bede72ae9aaef2111f3501e0c3114";
+		// 帐号地址
 		let address = "273a8d6237397af2e7f53210ecb0c87649056380";
 
 		let secret_key = hex::decode(private_key).unwrap();
@@ -202,5 +208,37 @@ mod tests {
 		let expected_account = AccountId20::from(expected_hex_account);
 
 		assert_eq!(account.into_account(), expected_account);
+	}
+
+	#[test]
+	fn test_account_derivation_2() {
+		let private_key = "1ba3d5bf96aaf05136bacebaba0c712cd325d2ebf8f37035d75b06ec93cc7477";
+		let address = "aa00e94F65c0782063471b981B9BfFBE90644f06";
+
+		let secret_key = hex::decode(&private_key).unwrap();
+
+		let mut expected_hex_account = [0u8; 20];
+		hex::decode_to_slice(address, &mut expected_hex_account)
+			.expect("example data is 20 bytes of vaild hex");
+
+		let pk = ecdsa::Pair::from_seed_slice(&secret_key).unwrap().public();
+		let account: EthereumSigner = pk.into();
+		let expected_account = AccountId20::from(expected_hex_account);
+
+		assert_eq!(account.into_account(), expected_account);
+	}
+
+	#[test]
+	fn test_verify() {
+		let message = "hello substrate and eth".as_bytes();
+		// 对消息进行签名
+		let message = libsecp256k1::Message::parse_slice(message).unwrap();
+
+		let private_key = "1ba3d5bf96aaf05136bacebaba0c712cd325d2ebf8f37035d75b06ec93cc7477";
+		let address = "aa00e94F65c0782063471b981B9BfFBE90644f06";
+
+		let sk = SecretKey::parse_slice(hex::decode(&private_key).unwrap().as_slice()).unwrap();
+
+		let (sig, recoverid) = libsecp256k1::sign(&message, &sk);
 	}
 }
