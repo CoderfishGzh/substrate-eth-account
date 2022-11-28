@@ -1,20 +1,18 @@
 [package]
 name = "hamster-core-primitives"
-authors = [ "Hamster" ]
-version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version = "0.1.1"
 
 [dependencies]
-account = { path = "../primitives/account" }
-sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+account = { path = "../primitives/account", default-features = false }
+
 sp-core = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+sp-runtime = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
 
 [features]
 default = [ "std" ]
 std = [
-	"account/std",
-	"sp-core/std",
-	"sp-runtime/std",
+    "account/std",
+    "sp-core/std",
+    "sp-runtime/std",
 ]
