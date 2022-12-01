@@ -17,11 +17,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use account::EthereumSignature;
-use sp_runtime::traits::BlakeTwo256;
 pub use sp_runtime::OpaqueExtrinsic;
 use sp_runtime::{
-    generic,
-    traits::{IdentifyAccount, Verify},
+	generic,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
 };
 
 pub type Block = generic::Block<Header, OpaqueExtrinsic>;

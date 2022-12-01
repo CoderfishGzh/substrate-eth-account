@@ -1,12 +1,21 @@
+use bip32::ExtendedPrivateKey;
+use bip39::{Language, Mnemonic, Seed};
+use hex_literal::hex;
+use libsecp256k1::{PublicKey, PublicKeyFormat};
+use log::debug;
 use node_template_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
 	SystemConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
+use sha3::{Digest, Keccak256};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{ecdsa, sr25519, Pair, Public, H160, H256};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
+
+use crate::account_keys::Secp256k1SecretKey;
+
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -48,16 +57,19 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		move || {
 			testnet_genesis(
 				wasm_binary,
-				// Initial PoA authorities
+				// Initial PoA 当局
+				// 预先设定作为 PoA的用户
 				vec![authority_keys_from_seed("Alice")],
 				// Sudo account
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				// 预先设定的Sudo account
+				AccountId::from(hex!("6Be02d1d3665660d22FF9624b7BE0551ee1Ac91b")),
 				// Pre-funded accounts
+				// 预先设定的资金帐号
 				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					get_account_id_from_seed::<ecdsa::Public>("Alice"),
+					get_account_id_from_seed::<ecdsa::Public>("Bob"),
+					get_account_id_from_seed::<ecdsa::Public>("Alice//stash"),
+					get_account_id_from_seed::<ecdsa::Public>("Bob//stash"),
 				],
 				true,
 			)
@@ -91,21 +103,19 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 				// Initial PoA authorities
 				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 				// Sudo account
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				// get_account_id_from_seed::<sr25519::Public>("Alice"),
+				AccountId::from(hex!("6Be02d1d3665660d22FF9624b7BE0551ee1Ac91b")),
 				// Pre-funded accounts
 				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie"),
-					get_account_id_from_seed::<sr25519::Public>("Dave"),
-					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+					// Alith, Baltathar, Charleth, Dorothy and Faith
+					AccountId::from(hex!("6Be02d1d3665660d22FF9624b7BE0551ee1Ac91b")),
+					AccountId::from(hex!("3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0")),
+					AccountId::from(hex!("798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc")),
+					AccountId::from(hex!("773539d4Ac0e786233D90A233654ccEE26a613D9")),
+					AccountId::from(hex!("C0F0f4ab324C46e55D02D0033343B4Be8A55532d")),
+					// Additional accounts
+					AccountId::from(hex!("Ff64d3F6efE2317EE2807d223a0Bdc4c0c49dfDB")),
+					AccountId::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")),
 				],
 				true,
 			)
@@ -153,4 +163,66 @@ fn testnet_genesis(
 		},
 		transaction_payment: Default::default(),
 	}
+}
+
+/// Helper function to get an `AccountId` from an ECDSA Key Pair.
+/// 从 ECDSA key pair 生成 AccountId
+pub fn get_account_id_from_pair(pair: ecdsa::Pair) -> Option<AccountId> {
+	let decompressed = PublicKey::parse_slice(&pair.public().0, Some(PublicKeyFormat::Compressed))
+		.ok()?
+		.serialize();
+
+	let mut m = [0u8; 64];
+	m.copy_from_slice(&decompressed[1..65]);
+
+	Some(H160::from(H256::from_slice(Keccak256::digest(&m).as_slice())).into())
+}
+
+// 根据 mnemonic 生成 num_accounts个帐号
+fn generate_accounts(mnemonic: String, num_accounts: u32) -> Vec<AccountId> {
+	let childs = derive_bip44_pairs_from_mnemonic::<ecdsa::Public>(&mnemonic, num_accounts);
+	debug!("Account Generation");
+	childs
+		.iter()
+		.filter_map(|par| {
+			let account = get_account_id_from_pair(par.clone());
+			debug!(
+				"private_key {} --------> Account {:x?}",
+				sp_core::hexdisplay::HexDisplay::from(&par.clone().seed()),
+				account
+			);
+			account
+		})
+		.collect()
+}
+
+// 从 mnemonic 中得出 child pair
+// 无法直接使用substrate的衍生功能，因为ETH和substrate的衍生方式不一样
+fn derive_bip44_pairs_from_mnemonic<TPublic: Public>(
+	mnemonic: &str,
+	num_accounts: u32,
+) -> Vec<TPublic::Pair> {
+	// 从 Mnemonic 中解析出 seed
+	let seed = Mnemonic::from_phrase(mnemonic, Language::English)
+		.map(|x| Seed::new(&x, ""))
+		.expect("Wrong mnemonic provided");
+
+	let mut childs = Vec::new();
+	for i in 0..num_accounts {
+		if let Some(child_pair) = format!("m/44'/60'/0'/0/{}", i)
+			.parse()
+			.ok()
+			.and_then(|derivation_path| {
+				ExtendedPrivateKey::<Secp256k1SecretKey>::derive_from_path(&seed, &derivation_path)
+					.ok()
+			})
+			.and_then(|extended| {
+				TPublic::Pair::from_seed_slice(&extended.private_key().0.serialize()).ok()
+			}) {
+			childs.push(child_pair);
+		} else {
+			log::error!("An error ocurred while deriving key {} from parent", i)
+		}
+	}
+	childs
 }

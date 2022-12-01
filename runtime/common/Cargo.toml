@@ -1,0 +1,13 @@
+[package]
+name = "hamster-runtime-common"
+authors = [ "Hamster" ]
+edition = "2021"
+license = "GPL-3.0-only"
+version = "0.8.0-dev"
+
+[dependencies]
+sp-core = { version = "6.0.0", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+[features]
+std = [
+    "sp-core/std",
+]

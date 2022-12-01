@@ -6,11 +6,10 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-// use account::AccountId20;
-// pub use hamster_core_primitives::{
-// 	AccountId, AccountIndex, Address, AssetId, Balance, BlockNumber, DigestItem, Hash, Header,
-// 	Index, Signature,
-// };
+use account::AccountId20;
+pub use hamster_core_primitives::{
+	AccountId, AccountIndex, AssetId, Balance, BlockNumber, DigestItem, Hash, Index, Signature,
+};
 
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
@@ -21,7 +20,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, NumberFor,
+		One, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
@@ -54,24 +54,24 @@ pub use sp_runtime::{Perbill, Permill};
 /// Import the template pallet.
 pub use pallet_template;
 
-/// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// Balance of an account.
-pub type Balance = u128;
-
-/// Index of a transaction in the chain.
-pub type Index = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
+// /// An index to a block.
+// pub type BlockNumber = u32;
+//
+// /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
+// pub type Signature = MultiSignature;
+//
+// /// Some way of identifying an account on the chain. We intentionally make it equivalent
+// /// to the public key of our transaction signing scheme.
+// pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+//
+// /// Balance of an account.
+// pub type Balance = u128;
+//
+// /// Index of a transaction in the chain.
+// pub type Index = u32;
+//
+// /// A hash of some data used by the chain.
+// pub type Hash = sp_core::H256;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -169,7 +169,8 @@ impl frame_system::Config for Runtime {
 	/// The aggregated dispatch type that is available for extrinsics.
 	type RuntimeCall = RuntimeCall;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-	type Lookup = AccountIdLookup<AccountId, ()>;
+	// type Lookup = AccountIdLookup<AccountId, ()>;
+	type Lookup = IdentityLookup<AccountId>;
 	/// The index type for storing how many extrinsics an account has signed.
 	type Index = Index;
 	/// The index type for blocks.
@@ -305,7 +306,8 @@ construct_runtime!(
 	}
 );
 
-pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
+// pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
+pub type Address = AccountId;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
@@ -335,6 +337,84 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 >;
+
+// hamster_runtime_common::impl_runtime_apis_plus_common! {
+// 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
+// 		fn validate_transaction(
+// 			source: TransactionSource,
+// 			xt: <Block as BlockT>::Extrinsic,
+// 			block_hash: <Block as BlockT>::Hash,
+// 		) -> TransactionValidity {
+// 			// Filtered calls should not enter the tx pool as they'll fail if inserted.
+// 			// If this call is not allowed, we return early.
+// 			if !<Runtime as frame_system::Config>::BaseCallFilter::contains(&xt.0.function) {
+// 				return InvalidTransaction::Call.into();
+// 			}
+// //此运行时使用基板的托盘交易付款。这个
+// //提交时，链条感觉像是标准的基板链
+// //框架交易和使用基板生态系统工具。它的不利之
+// //交易未通过GAS_PRICE优先考虑。以下代码重新定位
+// //交易以克服这一点。
+// //
+// //更优雅，以太坊首次解决方案是
+// //替换托盘交易付款并允许用户的托盘
+// //直接指定气价而不是计算有效的价格。
+// // #hopelysomeday
+
+// //首先，我们将交易传递给标准框架主管。这计算了所有
+// //我们将保持不变的必要标签，寿命和其他属性。
+// //这还分配了一些我们不在乎的优先级，接下来会覆盖。
+// 			let mut intermediate_valid = Executive::validate_transaction(source, xt.clone(), block_hash)?;
+
+// 			let dispatch_info = xt.get_dispatch_info();
+
+// 			//如果这是托盘以太坊交易，则已经设置其优先级
+// //根据托盘以太坊的气价。如果是其他类型的交易，
+// //我们将其优先级修改。
+// 			Ok(match &xt.0.function {
+// 				Call::Ethereum(transact { .. }) => intermediate_valid,
+// 				_ if dispatch_info.class != DispatchClass::Normal => intermediate_valid,
+// 				_ => {
+// 					let tip = match xt.0.signature {
+// 						None => 0,
+// 						Some((_, _, ref signed_extra)) => {
+// 							// Yuck, this depends on the index of charge transaction in Signed Extra
+// 							let charge_transaction = &signed_extra.6;
+// 							charge_transaction.tip()
+// 						}
+// 					};
+
+// 					// Calculate the fee that will be taken by pallet transaction payment
+// 					let fee: u64 = TransactionPayment::compute_fee(
+// 						xt.encode().len() as u32,
+// 						&dispatch_info,
+// 						tip,
+// 					).saturated_into();
+
+// 					// Calculate how much gas this effectively uses according to the existing mapping
+// 					let effective_gas =
+// 						<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(
+// 							dispatch_info.weight
+// 						);
+
+// 					// Here we calculate an ethereum-style effective gas price using the
+// 					// current fee of the transaction. Because the weight -> gas conversion is
+// 					// lossy, we have to handle the case where a very low weight maps to zero gas.
+// 					let effective_gas_price = if effective_gas > 0 {
+// 						fee / effective_gas
+// 					} else {
+// 						// If the effective gas was zero, we just act like it was 1.
+// 						fee
+// 					};
+
+// 					// Overwrite the original prioritization with this ethereum one
+// 					intermediate_valid.priority = effective_gas_price;
+// 					intermediate_valid
+// 				}
+// 			})
+// 		}
+// 	}
+// }
 
 #[cfg(feature = "runtime-benchmarks")]
 #[macro_use]

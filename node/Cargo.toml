@@ -18,6 +18,9 @@ name = "node-template"
 
 [dependencies]
 clap = { version = "4.0.9", features = ["derive"] }
+log = { version = "0.4.17"}
+bip32 = { git = "https://github.com/purestake/crates", branch = "bip32-v0.4.0-fix", default-features = false, features = [ "bip39" ] }
+tiny-bip39 = { version = "0.8", default-features = false }
 
 sc-cli = { version = "0.10.0-dev", git = "https://github.com/paritytech/substrate.git", features = ["wasmtime"] , branch = "polkadot-v0.9.32" }
 sp-core = { version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
@@ -61,6 +64,11 @@ node-template-runtime = { version = "4.0.0-dev", path = "../runtime" }
 
 # CLI-specific dependencies
 try-runtime-cli = { version = "0.10.0-dev", optional = true, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
+
+# Hamster
+sha3 = { version = "0.10.6", default-features = false }
+libsecp256k1 = "0.6"
+hex-literal = "0.3.4"
 
 [build-dependencies]
 substrate-build-script-utils = { version = "3.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.32" }
