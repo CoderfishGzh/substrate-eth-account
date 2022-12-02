@@ -15,7 +15,8 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 use crate::account_keys::Secp256k1SecretKey;
-
+use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
+use serde::{Deserialize, Serialize};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -66,10 +67,15 @@ pub fn development_config() -> Result<ChainSpec, String> {
 				// Pre-funded accounts
 				// 预先设定的资金帐号
 				vec![
-					get_account_id_from_seed::<ecdsa::Public>("Alice"),
-					get_account_id_from_seed::<ecdsa::Public>("Bob"),
-					get_account_id_from_seed::<ecdsa::Public>("Alice//stash"),
-					get_account_id_from_seed::<ecdsa::Public>("Bob//stash"),
+					// get_account_id_from_seed::<ecdsa::Public>("Alice"),
+					// get_account_id_from_seed::<ecdsa::Public>("Bob"),
+					// get_account_id_from_seed::<ecdsa::Public>("Alice//stash"),
+					// get_account_id_from_seed::<ecdsa::Public>("Bob//stash"),
+					AccountId::from(hex!("6Be02d1d3665660d22FF9624b7BE0551ee1Ac91b")),
+					AccountId::from(hex!("3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0")),
+					AccountId::from(hex!("798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc")),
+					AccountId::from(hex!("773539d4Ac0e786233D90A233654ccEE26a613D9")),
+					AccountId::from(hex!("C0F0f4ab324C46e55D02D0033343B4Be8A55532d")),
 				],
 				true,
 			)
@@ -84,7 +90,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// Properties
 		None,
 		// Extensions
-		None,
+		None,	
 	))
 }
 
@@ -225,4 +231,20 @@ fn derive_bip44_pairs_from_mnemonic<TPublic: Public>(
 		}
 	}
 	childs
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
+#[serde(rename_all = "camelCase")]
+pub struct Extensions {
+	/// The relay chain of the Parachain.
+	pub relay_chain: String,
+	/// The id of the Parachain.
+	pub para_id: u32,
+}
+
+impl Extensions {
+	/// Try to get the extension from the given `ChainSpec`.
+	pub fn try_get(chain_spec: &dyn sc_service::ChainSpec) -> Option<&Self> {
+		sc_chain_spec::get_extension(chain_spec.extensions())
+	}
 }
